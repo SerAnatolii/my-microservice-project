@@ -1,0 +1,7 @@
+temp
+.idea/*
+.venv/*
+**/__pycache__
+
+.aws/
+.terraform
