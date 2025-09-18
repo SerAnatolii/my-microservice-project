@@ -1,0 +1,22 @@
+image:
+  repository: "<your-account-id>.dkr.ecr.us-west-2.amazonaws.com/lesson-7-django-app"
+  tag: "latest"
+  pullPolicy: IfNotPresent
+
+service:
+  type: LoadBalancer
+  port: 80
+  targetPort: 8000
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 6
+  targetCPUUtilizationPercentage: 70
+
+configMap:
+  env:
+    DEBUG: "false"
+    DATABASE_URL: "sqlite:///db.sqlite3"
+    ALLOWED_HOSTS: "*"
+    SECRET_KEY: "your-secret-key"

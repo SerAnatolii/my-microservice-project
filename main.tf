@@ -1,8 +1,11 @@
+provider "aws" {
+  region = "us-west-2"
+}
 
 # Підключаємо модуль S3 та DynamoDB
 module "s3_backend" {
   source      = "./modules/s3-backend"
-  bucket_name = "lesson-5-terraform-state-bucket"  # Замініть на унікальне ім'я
+  bucket_name = "lesson-5-terraform-state-bucket-anatolii"  
   table_name  = "terraform-locks"
 }
 
@@ -21,4 +24,13 @@ module "ecr" {
   source       = "./modules/ecr"
   ecr_name     = "lesson-5-ecr"
   scan_on_push = true
+}
+
+# Підключаємо модуль EKS
+module "eks" {
+  source             = "./modules/eks"
+  cluster_name       = "lesson-7-eks-cluster"
+  vpc_id             = module.vpc.vpc_id
+  private_subnet_ids = module.vpc.private_subnet_ids
+  public_subnet_ids  = module.vpc.public_subnet_ids
 }
