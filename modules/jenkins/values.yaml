@@ -1,0 +1,49 @@
+
+controller:
+  jenkinsUrl: "http://jenkins.jenkins.svc.cluster.local:8080"
+  installPlugins:
+    - kubernetes:1.31.1
+    - workflow-aggregator:2.6
+    - git:4.8.2
+    - configuration-as-code:1.55
+  additionalPlugins:
+    - amazon-ecr:1.104.0
+    - kubernetes-cli:1.10.0
+  persistence:
+    enabled: true
+    storageClass: "ebs-sc" 
+    size: 10Gi
+  serviceType: ClusterIP
+agent:
+  enabled: true
+  image: "jenkins/inbound-agent"
+  tag: "latest"
+  component: "agent"
+  podTemplates:
+    kaniko:
+      yaml: |
+        apiVersion: v1
+        kind: Pod
+        metadata:
+          name: kaniko
+        spec:
+          containers:
+          - name: kaniko
+            image: gcr.io/kaniko-project/executor:latest
+            command:
+            - /busybox/cat
+            tty: true
+            volumeMounts:
+            - name: jenkins-docker-cfg
+              mountPath: /kaniko/.docker
+          volumes:
+          - name: jenkins-docker-cfg
+            projected:
+              sources:
+              - secret:
+                  name: regcred
+                  items:
+                    - key: .dockerconfigjson
+                      path: config.json
+rbac:
+  create: true

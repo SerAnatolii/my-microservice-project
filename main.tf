@@ -34,3 +34,21 @@ module "eks" {
   private_subnet_ids = module.vpc.private_subnet_ids
   public_subnet_ids  = module.vpc.public_subnet_ids
 }
+
+# Jenkins module
+module "jenkins" {
+  source = "./modules/jenkins"
+
+  cluster_endpoint = module.eks.cluster_endpoint
+  cluster_ca_certificate = module.eks.cluster_ca_certificate
+  cluster_name = module.eks.cluster_name
+}
+
+# Argo CD module
+module "argo_cd" {
+  source = "./modules/argo_cd"
+
+  cluster_endpoint = module.eks.cluster_endpoint
+  cluster_ca_certificate = module.eks.cluster_ca_certificate
+  cluster_name = module.eks.cluster_name
+}

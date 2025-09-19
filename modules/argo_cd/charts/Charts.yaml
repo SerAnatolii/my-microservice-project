@@ -1,0 +1,5 @@
+# lesson-7/modules/argo_cd/charts/Chart.yaml
+apiVersion: v2
+name: argo-applications
+description: A Helm chart for Argo CD applications
+version: 0.1.0

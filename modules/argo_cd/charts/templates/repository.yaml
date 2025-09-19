@@ -1,0 +1,9 @@
+
+apiVersion: argoproj.io/v1alpha1
+kind: Repository
+metadata:
+  name: {{ index .Values.repositories .name }}
+  namespace: argocd
+spec:
+  url: {{ index .Values.repositories 0.url }}
+  type: git

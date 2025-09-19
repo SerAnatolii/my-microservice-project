@@ -1,0 +1,10 @@
+
+server:
+  service:
+    type: LoadBalancer
+configs:
+  secret:
+    argocdServerAdminPassword: "$2a$12$randompasswordhash"  
+  repositories:
+    - name: django-helm-chart
+      url: https://github.com/SerAnatolii/my-microservice-project/tree/main/charts

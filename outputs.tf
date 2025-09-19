@@ -38,3 +38,25 @@ output "eks_cluster_name" {
   description = "Name of the EKS cluster"
   value       = module.eks.cluster_name
 }
+
+output "jenkins_url" {
+  description = "URL of Jenkins"
+  value       = module.jenkins.jenkins_url
+}
+
+output "jenkins_admin_password" {
+  description = "Initial admin password for Jenkins"
+  value       = module.jenkins.jenkins_admin_password
+  sensitive   = true
+}
+
+output "argo_cd_url" {
+  description = "URL of Argo CD"
+  value       = module.argo_cd.argo_cd_url
+}
+
+output "argo_cd_admin_password" {
+  description = "Initial admin password for Argo CD"
+  value       = module.argo_cd.argo_cd_admin_password
+  sensitive   = true
+}
