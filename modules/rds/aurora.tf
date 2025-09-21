@@ -12,6 +12,8 @@ resource "aws_rds_cluster" "main" {
   vpc_security_group_ids  = [aws_security_group.main.id]
   db_cluster_parameter_group_name = aws_rds_cluster_parameter_group.main.name
   skip_final_snapshot     = var.skip_final_snapshot
+  monitoring_interval = 60
+  monitoring_role_arn = aws_iam_role.rds_monitoring_role.arn
 
   tags = {
     Name = var.db_identifier
@@ -27,4 +29,6 @@ resource "aws_rds_cluster_instance" "writer" {
   engine               = var.engine
   engine_version       = var.engine_version
   publicly_accessible  = var.publicly_accessible
+  monitoring_interval = 60
+  monitoring_role_arn = aws_iam_role.rds_monitoring_role.arn
 }

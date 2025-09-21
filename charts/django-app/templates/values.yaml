@@ -1,5 +1,5 @@
 image:
-  repository: "<your-account-id>.dkr.ecr.us-west-2.amazonaws.com/lesson-7-django-app"
+  repository: "471754640546.dkr.ecr.us-west-2.amazonaws.com/lesson-7-django"
   tag: "latest"
   pullPolicy: IfNotPresent
 

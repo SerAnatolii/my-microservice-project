@@ -1,36 +1,216 @@
-# Урок 10: # Модуль RDS для Terraform
+# Final Project
 
-Цей модуль створює універсальну базу даних на AWS: або Aurora Cluster (з одним writer-інстансом), або звичайну RDS-інстанс, залежно від значення змінної `use_aurora`. Він автоматично створює DB Subnet Group, Security Group та Parameter Group з базовими параметрами (max_connections, log_statement, work_mem).
+Цей проєкт реалізує повний CI/CD-пайплайн для Django-застосунку, розгорнутого на кластері Amazon EKS. Пайплайн використовує Terraform для створення інфраструктури, Jenkins для побудови та публікації Docker-образів у Amazon ECR, Helm для керування розгортаннями в Kubernetes та Argo CD для автоматичної синхронізації застосунку з Git-репозиторію. Додатково додано моніторинг за допомогою Prometheus і Grafana.
 
-Модуль підтримує багаторазове використання з мінімальними змінами змінних і може бути легко адаптований для різних типів БД (наприклад, PostgreSQL, MySQL).
+## Структура проєкту
 
-## Приклад використання модуля
+```
+lesson-7/
+│
+├── main.tf                  # Основний файл Terraform для оркестрації модулів
+├── backend.tf               # Налаштування бекенду для стану Terraform (S3 + DynamoDB)
+├── outputs.tf               # Виведення ресурсів (VPC, EKS, ECR тощо)
+│
+├── modules/
+│   ├── s3-backend/          # Модуль для S3-бакета та DynamoDB
+│   ├── vpc/                 # VPC, підмережі та маршрутизація
+│   ├── ecr/                 # Репозиторій Amazon ECR для Django-образу
+│   ├── eks/                 # Кластер EKS та група вузлів
+│   ├── rds/                 # Модуль для RDS/Aurora
+│   ├── jenkins/             # Встановлення Jenkins через Helm
+│   ├── argo_cd/             # Встановлення Argo CD через Helm та Application
+│   ├── monitoring/          # Встановлення Prometheus і Grafana через Helm
+│
+├── charts/
+│   └── django-app/          # Helm-чарт для Django-застосунку
+```
 
-У вашому `main.tf` додайте наступне:
+## Передумови
 
-```terraform
-module "rds" {
-  source = "./modules/rds"
+- **AWS CLI**: Налаштований з обліковими даними для користувача `terraform-user-1`.
+- **Terraform**: Версія 1.5.0 або новіша.
+- **Docker**: Встановлений і запущений (Docker Desktop на macOS).
+- **kubectl**: Для взаємодії з кластером EKS.
+- **Helm**: Для керування Helm-чартами.
+- **Git**: Для роботи з репозиторіями.
+- **Jenkins**: Встановлюється через Helm (налаштовано в `modules/jenkins`).
+- **Argo CD**: Встановлюється через Helm (налаштовано в `modules/argo_cd`).
+- **Prometheus/Grafana**: Встановлюються через Helm (налаштовано в `modules/monitoring`).
 
-  use_aurora             = true  # true для Aurora Cluster, false для RDS instance
-  db_identifier          = "my-db"
-  engine                 = "postgres"
-  engine_version         = "13.6"
-  instance_class         = "db.t3.micro"
-  allocated_storage      = 20
-  storage_type           = "gp2"
-  db_name                = "mydatabase"
-  db_username            = "admin"
-  db_password            = "strongpassword"
-  subnet_ids             = ["subnet-12345678", "subnet-87654321"]  # IDs підмереж з VPC
-  vpc_id                 = "vpc-12345678"
-  db_port                = 5432
-  allowed_cidr_blocks    = ["10.0.0.0/16"]  # CIDR для доступу до БД
-  parameter_group_family = "postgres13"
-  max_connections        = "100"
-  log_statement          = "all"
-  work_mem               = "4096"
-  multi_az               = true
-  publicly_accessible    = false
-  skip_final_snapshot    = true
-}
+## Інструкції з налаштування
+
+### 1. Ініціалізація та застосування Terraform
+1. **Перейдіть до директорії проєкту**:
+
+
+2. **Ініціалізуйте Terraform**:
+   ```bash
+   terraform init
+   ```
+
+3. **Застосуйте конфігурацію Terraform**:
+   ```bash
+   terraform apply
+   ```
+   - Це створює:
+     - S3-бакет (`lesson-5-terraform-state-bucket-anatolii`) та таблицю DynamoDB (`terraform-locks`) для керування станом.
+     - VPC з публічними та приватними підмережами.
+     - Репозиторій ECR (`lesson-7-django`).
+     - Кластер EKS (`lesson-7-eks-cluster`) та групу вузлів.
+     - Jenkins та Argo CD через Helm-релізи.
+     - Prometheus і Grafana для моніторингу.
+
+4. **Перевірте виведення**:
+   ```bash
+   terraform output ecr_repository_url
+   terraform output eks_cluster_name
+   terraform output jenkins_url
+   terraform output argo_cd_url
+   terraform output prometheus_url
+   terraform output grafana_url
+   ```
+
+### 2. Побудова та публікація Docker-образу Django
+1. **Побудуйте образ**:
+   Встановіть образ із репозиторію додатку
+
+2. **Позначте та відправте до ECR**:
+   ```bash
+   docker tag my-django-app:latest 471754640546.dkr.ecr.us-west-2.amazonaws.com/lesson-7-django:latest
+   aws ecr get-login-password --region us-west-2 | docker login --username AWS --password-stdin 471754640546.dkr.ecr.us-west-2.amazonaws.com
+   docker push 471754640546.dkr.ecr.us-west-2.amazonaws.com/lesson-7-django:latest
+   ```
+
+3. **Перевірте образ у ECR**:
+   ```bash
+   aws ecr describe-images --repository-name lesson-7-django --region us-west-2
+   ```
+
+### 3. Налаштування Jenkins-пайплайну
+1. **Доступ до Jenkins**:
+   - Отримайте URL та пароль адміністратора:
+     ```bash
+     terraform output jenkins_url
+     terraform output jenkins_admin_password
+     ```
+   - Для локального доступу використовуйте port-forward:
+     ```bash
+     kubectl port-forward svc/jenkins -n jenkins 8080:8080
+     ```
+   - Увійдіть за адресою `http://localhost:8080` з логіном `admin` та паролем.
+
+2. **Налаштуйте облікові дані ECR**:
+   ```bash
+   kubectl create secret docker-registry regcred \
+     --docker-server=471754640546.dkr.ecr.us-west-2.amazonaws.com \
+     --docker-username=AWS \
+     --docker-password=$(aws ecr get-login-password --region us-west-2) \
+     -n jenkins
+   ```
+
+3. **Налаштуйте облікові дані Git**:
+   - У Jenkins перейдіть до **Manage Jenkins** > **Manage Credentials** > **Add Credentials**.
+   - Додайте облікові дані типу `Username with Password` для вашого GitHub-репозиторію (ID: `git-credentials`).
+
+4. **Створіть пайплайн**:
+   - Створіть новий пайплайн у Jenkins.
+   - Вкажіть репозиторій вашого Django-проєкту (наприклад, `https://github.com/your-repo/my-django-project.git`) та вкажіть `Jenkinsfile`.
+
+### 4. Налаштування Argo CD
+1. **Доступ до Argo CD**:
+   - Отримайте URL та пароль адміністратора:
+     ```bash
+     terraform output argo_cd_url
+     kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d
+     ```
+   - Для локального доступу:
+     ```bash
+     kubectl port-forward svc/argo-cd-argocd-server -n argocd 8080:443
+     ```
+   - Увійдіть за адресою `https://localhost:8080` з логіном `admin` та паролем.
+
+2. **Перевірте Application**:
+   ```bash
+   kubectl -n argocd get applications
+   ```
+   - Переконайтеся, що застосунок `django-app` синхронізований і має статус Healthy.
+
+### 5. Розгортання Django-застосунку
+1. **Оновіть Helm-чарт**:
+   - Переконайтеся, що `lesson-7/charts/django-app/values.yaml` посилається на образ ECR:
+     ```yaml
+     image:
+       repository: "471754640546.dkr.ecr.us-west-2.amazonaws.com/lesson-7-django"
+       tag: "latest"
+       pullPolicy: IfNotPresent
+     ```
+
+2. **Розгорніть через Helm** (за потреби вручну):
+   ```bash
+   cd lesson-7/charts
+   helm install django-app ./django-app
+   ```
+
+3. **Перевірте розгортання**:
+   ```bash
+   kubectl -n default get pods
+   kubectl -n default get svc
+   ```
+   - Отримайте URL LoadBalancer:
+     ```bash
+     kubectl -n default get svc django-app -o jsonpath="{.status.loadBalancer.ingress[0].hostname}"
+     ```
+   - Відкрийте Django-застосунок за адресою `http://<loadbalancer-url>`.
+
+### 6. Налаштування моніторингу з Prometheus і Grafana
+1. **Застосуйте модуль моніторингу**:
+   ```bash
+   terraform apply
+   ```
+
+2. **Отримайте доступ до Prometheus і Grafana**:
+   - Отримайте URL та пароль:
+     ```bash
+     terraform output prometheus_url
+     terraform output grafana_url
+     terraform output grafana_admin_password
+     ```
+   - Для локального доступу до Grafana:
+     ```bash
+     kubectl port-forward svc/prometheus-grafana -n monitoring 8080:80
+     ```
+   - Увійдіть за адресою `http://localhost:8080` з логіном `admin` та паролем.
+
+3. **Налаштуйте Grafana**:
+   - Додайте Prometheus як джерело даних:
+     - URL: `http://prometheus-operated.monitoring.svc.cluster.local:9090`
+   - Імпортуйте дашборди:
+     - Kubernetes Cluster: ID 6417
+     - Django Metrics: ID 12840
+     - RDS (якщо використовується): ID 12739 (потрібне джерело даних CloudWatch)
+
+4. **Перевірте метрики Django**:
+   ```bash
+   kubectl -n default port-forward svc/django-app 8000:8000
+   curl http://localhost:8000/metrics
+   ```
+
+5. **Моніторинг RDS (якщо використовується)**:
+   - Увімкніть Enhanced Monitoring у модулі `rds`:
+     ```bash
+     terraform apply
+     ```
+   - Додайте CloudWatch як джерело даних у Grafana (регіон: `us-west-2`).
+
+### 7. Робота CI/CD-пайплайну
+1. **Jenkins-пайплайн**:
+   - `Jenkinsfile` у репозиторії `my-django-project`:
+     - Будує Docker-образ із тегом (наприклад, `BUILD_NUMBER`).
+     - Відправляє його до `471754640546.dkr.ecr.us-west-2.amazonaws.com/lesson-7-django:BUILD_NUMBER`.
+     - Оновлює `values.yaml` у репозиторії Helm-чарту (`https://github.com/your-repo/django-helm-chart.git`).
+     - Пушить зміни до гілки `main`.
+
+2. **Синхронізація Argo CD**:
+   - Argo CD відстежує `https://github.com/your-repo/django-helm-chart.git`.
+   - Автоматично синхронізує Helm-чарт `django-app` після оновлення `values.yaml`.
+   - Перевірте розгортання в кластері EKS.

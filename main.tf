@@ -52,3 +52,12 @@ module "argo_cd" {
   cluster_ca_certificate = module.eks.cluster_ca_certificate
   cluster_name = module.eks.cluster_name
 }
+
+#monitoring
+module "monitoring" {
+  source = "./modules/monitoring"
+
+  cluster_endpoint       = module.eks.cluster_endpoint
+  cluster_ca_certificate = module.eks.cluster_ca_certificate
+  cluster_name          = module.eks.cluster_name
+}
